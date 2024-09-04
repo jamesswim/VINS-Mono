@@ -1,42 +1,45 @@
-FROM ros:kinetic-perception
+# 使用ROS Noetic作為基礎映像
+FROM ros:noetic-perception
 
+# 設置環境變量
 ENV CERES_VERSION="1.12.0"
 ENV CATKIN_WS=/root/catkin_ws
 
-      # set up thread number for building
-RUN   if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
-      else export USE_PROC=$(($(nproc)/2)) ; fi && \
-      apt-get update && apt-get install -y \
-      cmake \
-      libatlas-base-dev \
-      libeigen3-dev \
-      libgoogle-glog-dev \
-      libsuitesparse-dev \
-      python-catkin-tools \
-      ros-${ROS_DISTRO}-cv-bridge \
-      ros-${ROS_DISTRO}-image-transport \
-      ros-${ROS_DISTRO}-message-filters \
-      ros-${ROS_DISTRO}-tf && \
-      rm -rf /var/lib/apt/lists/* && \
-      # Build and install Ceres
-      git clone https://ceres-solver.googlesource.com/ceres-solver && \
-      cd ceres-solver && \
-      git checkout tags/${CERES_VERSION} && \
-      mkdir build && cd build && \
-      cmake .. && \
-      make -j$(USE_PROC) install && \
-      rm -rf ../../ceres-solver && \
-      mkdir -p $CATKIN_WS/src/VINS-Mono/
+# 設置線程數以加快構建速度
+RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
+    else export USE_PROC=$(($(nproc)/2)) ; fi && \
+    apt-get update && apt-get install -y \
+    cmake \
+    libatlas-base-dev \
+    libeigen3-dev \
+    libgoogle-glog-dev \
+    libsuitesparse-dev \
+    python3-catkin-tools \
+    python3-opencv \
+    ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-image-transport \
+    ros-${ROS_DISTRO}-message-filters \
+    ros-${ROS_DISTRO}-tf && \
+    rm -rf /var/lib/apt/lists/* && \
+    # 構建和安裝Ceres
+    git clone https://ceres-solver.googlesource.com/ceres-solver && \
+    cd ceres-solver && \
+    git checkout tags/${CERES_VERSION} && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make -j$(USE_PROC) install && \
+    rm -rf ../../ceres-solver && \
+    mkdir -p $CATKIN_WS/src/VINS-Mono/
 
-# Copy VINS-Mono
+# 複製VINS-Mono
 COPY ./ $CATKIN_WS/src/VINS-Mono/
-# use the following line if you only have this dockerfile
+# 如果只有這個Dockerfile，使用以下行
 # RUN git clone https://github.com/HKUST-Aerial-Robotics/VINS-Mono.git
 
-# Build VINS-Mono
+# 構建VINS-Mono
 WORKDIR $CATKIN_WS
-ENV TERM xterm
-ENV PYTHONIOENCODING UTF-8
+ENV TERM=xterm
+ENV PYTHONIOENCODING=UTF-8
 RUN catkin config \
       --extend /opt/ros/$ROS_DISTRO \
       --cmake-args \
@@ -44,3 +47,4 @@ RUN catkin config \
     catkin build && \
     sed -i '/exec "$@"/i \
             source "/root/catkin_ws/devel/setup.bash"' /ros_entrypoint.sh
+
