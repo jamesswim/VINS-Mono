@@ -9,6 +9,7 @@ ENV CATKIN_WS=/root/catkin_ws
 RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
     else export USE_PROC=$(($(nproc)/2)) ; fi && \
     apt-get update && apt-get install -y \
+    git \ 
     cmake \
     libatlas-base-dev \
     libeigen3-dev \
