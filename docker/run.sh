@@ -46,7 +46,7 @@ docker run \
   "cd /root/catkin_ws/; \
   catkin config \
         --env-cache \
-        --extend /opt/ros/noetic \  # 確保使用Noetic的環境
+        --extend /opt/ros/noetic \  
        --cmake-args \
          -DCMAKE_BUILD_TYPE=Release; \
      catkin build; \
