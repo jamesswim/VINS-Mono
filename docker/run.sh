@@ -38,6 +38,8 @@ docker run \
   -it \
   --rm \
   --net=host \
+  -e DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \ 
   -v ${VINS_MONO_DIR}:/root/catkin_ws/src/VINS-Mono/ \
   ros:vins-mono \
   /bin/bash -c \
