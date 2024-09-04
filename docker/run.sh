@@ -27,7 +27,7 @@ fi
 
 roscore &
 ROSCORE_PID=$!
-sleep 1
+sleep 3
 
 rviz -d ../config/vins_rviz_config.rviz &
 RVIZ_PID=$!
@@ -39,19 +39,15 @@ docker run \
   --rm \
   --net=host \
   -e DISPLAY=$DISPLAY \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \ 
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v ${VINS_MONO_DIR}:/root/catkin_ws/src/VINS-Mono/ \
   ros:vins-mono \
-  /bin/bash -c \
-  "cd /root/catkin_ws/; \
-  catkin config \
-        --env-cache \
-        --extend /opt/ros/noetic \  
-       --cmake-args \
-         -DCMAKE_BUILD_TYPE=Release; \
-     catkin build; \
-     source devel/setup.bash; \
-     roslaunch vins_estimator ${1}"
+  /bin/bash -c "cd /root/catkin_ws/; \
+  source /opt/ros/noetic/setup.bash; \
+  catkin config --env-cache --extend /opt/ros/noetic --cmake-args -DCMAKE_BUILD_TYPE=Release; \
+  catkin build; \
+  source devel/setup.bash; \
+  roslaunch vins_estimator ${1}"
 
 wait $ROSCORE_PID
 wait $RVIZ_PID
