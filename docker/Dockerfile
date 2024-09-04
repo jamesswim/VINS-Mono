@@ -1,5 +1,5 @@
-# 使用ROS Noetic作為基礎映像
-FROM ros:noetic-perception
+# 使用ROS Noetic Desktop Full作為基礎映像
+FROM osrf/ros:noetic-desktop-full
 
 # 設置環境變量
 ENV CERES_VERSION="1.12.0"
@@ -16,6 +16,7 @@ RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
     libsuitesparse-dev \
     python3-catkin-tools \
     python3-opencv \
+    x11-apps \  
     ros-${ROS_DISTRO}-cv-bridge \
     ros-${ROS_DISTRO}-image-transport \
     ros-${ROS_DISTRO}-message-filters \
