@@ -1,6 +1,9 @@
 # 使用 Ubuntu 20.04 作為基礎映像
 FROM ubuntu:20.04
 
+# 設置非交互模式，避免在安裝過程中要求輸入
+ENV DEBIAN_FRONTEND=noninteractive
+
 # 設置 ROS 環境變數
 ENV ROS_PACKAGE_PATH=/opt/ros/noetic/share
 
