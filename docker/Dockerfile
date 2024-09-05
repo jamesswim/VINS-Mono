@@ -77,15 +77,12 @@ RUN mkdir -p /root/catkin_ws/src && \
     /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin config --extend /opt/ros/noetic --cmake-args -DCMAKE_BUILD_TYPE=Release" && \
     /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build"
 
+# 在每次啟動容器時加載ROS環境變量
+RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
+RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
 
 # 複製VINS-Mono
 COPY ./ $CATKIN_WS/src/VINS-Mono/
 
-# 構建VINS-Mono
-WORKDIR $CATKIN_WS
-RUN catkin build && \
-    sed -i '/exec "$@"/i \
-            source "/root/catkin_ws/devel/setup.bash"' /ros_entrypoint.sh
-
-
-RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
+# 將工作目錄設置為catkin工作空間
+WORKDIR /root/catkin_ws
