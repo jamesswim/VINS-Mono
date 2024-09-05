@@ -59,12 +59,7 @@ RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
     libgoogle-glog-dev \
     python3-catkin-tools \
     python3-opencv \
-    x11-apps \  
-    # ros-${ROS_DISTRO}-rviz \
-    # ros-${ROS_DISTRO}-cv-bridge \
-    # ros-${ROS_DISTRO}-image-transport \
-    # ros-${ROS_DISTRO}-message-filters \
-    # ros-${ROS_DISTRO}-tf && \
+    x11-apps && \
     rm -rf /var/lib/apt/lists/* && \
     # 構建和安裝Ceres
     git clone https://ceres-solver.googlesource.com/ceres-solver && \
@@ -73,24 +68,22 @@ RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
     mkdir build && cd build && \
     cmake .. && \
     make -j$(USE_PROC) install && \
-    rm -rf ../../ceres-solver && \
-    mkdir -p $CATKIN_WS/src/VINS-Mono/
+    rm -rf ../../ceres-solver 
+
+# 初始化catkin工作空間
+RUN mkdir -p /root/catkin_ws/src && \
+    cd /root/catkin_ws && \
+    catkin init && \
+    catkin config --extend /opt/ros/$ROS_DISTRO --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # 複製VINS-Mono
 COPY ./ $CATKIN_WS/src/VINS-Mono/
-# 如果只有這個Dockerfile，使用以下行
-# RUN git clone https://github.com/HKUST-Aerial-Robotics/VINS-Mono.git
 
 # 構建VINS-Mono
 WORKDIR $CATKIN_WS
-ENV TERM=xterm
-ENV PYTHONIOENCODING=UTF-8
-RUN catkin config \
-      --extend /opt/ros/$ROS_DISTRO \
-      --cmake-args \
-        -DCMAKE_BUILD_TYPE=Release && \
-    catkin build && \
+RUN catkin build && \
     sed -i '/exec "$@"/i \
             source "/root/catkin_ws/devel/setup.bash"' /ros_entrypoint.sh
+
 
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
