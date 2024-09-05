@@ -74,6 +74,7 @@ RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
 RUN mkdir -p /root/catkin_ws/src && \
     cd /root/catkin_ws && \
     catkin init && \
+    /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash; catkin init" && \
     catkin config --extend /opt/ros/$ROS_DISTRO --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # 複製VINS-Mono
