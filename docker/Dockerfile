@@ -73,9 +73,10 @@ RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
 # 初始化catkin工作空間
 RUN mkdir -p /root/catkin_ws/src && \
     cd /root/catkin_ws && \
-    catkin init && \
-    /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash; catkin config --extend /opt/ros/$ROS_DISTRO --cmake-args -DCMAKE_BUILD_TYPE=Release" && \
-    /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash; catkin build"
+    /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin init" && \
+    /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin config --extend /opt/ros/noetic --cmake-args -DCMAKE_BUILD_TYPE=Release" && \
+    /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build"
+
 
 # 複製VINS-Mono
 COPY ./ $CATKIN_WS/src/VINS-Mono/
