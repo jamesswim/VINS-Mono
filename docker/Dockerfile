@@ -82,7 +82,7 @@ RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
 
 # 複製VINS-Mono
-COPY ./ $CATKIN_WS/src/VINS-Mono/
+COPY ../ $CATKIN_WS/src/VINS-Mono/
 
 # 將工作目錄設置為catkin工作空間
 WORKDIR /root/catkin_ws
