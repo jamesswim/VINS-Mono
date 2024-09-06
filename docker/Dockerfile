@@ -80,6 +80,8 @@ RUN mkdir -p /root/catkin_ws/src && \
 # 在每次啟動容器時加載ROS環境變量
 RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
+# 設置 ROS_PACKAGE_PATH 環境變量，永久生效
+RUN echo 'export ROS_PACKAGE_PATH=/root/catkin_ws/src:$ROS_PACKAGE_PATH' >> /root/.bashrc
 
 # 複製VINS-Mono
 COPY ../ $CATKIN_WS/src/VINS-Mono/
