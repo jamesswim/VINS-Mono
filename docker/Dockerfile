@@ -83,8 +83,5 @@ RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
 # 設置 ROS_PACKAGE_PATH 環境變量，永久生效
 RUN echo 'export ROS_PACKAGE_PATH=/root/catkin_ws/src:$ROS_PACKAGE_PATH' >> /root/.bashrc
 
-# 複製VINS-Mono
-COPY ../ $CATKIN_WS/src/VINS-Mono/
-
 # 將工作目錄設置為catkin工作空間
 WORKDIR /root/catkin_ws
