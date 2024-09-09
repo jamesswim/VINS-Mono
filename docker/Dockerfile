@@ -6,8 +6,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 設置 ROS 環境變數
 ENV ROS_PACKAGE_PATH=/opt/ros/noetic/share
-
-# 設置環境變量
 ENV CERES_VERSION="1.12.0"
 ENV CATKIN_WS=/root/catkin_ws
 
@@ -28,27 +26,24 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     qtbase5-dev \
     python3 \
     python3-pip \
-    wget 
+    xdg-utils \
+    wget \
+    ros-noetic-catkin \
+    && rm -rf /var/lib/apt/lists/*
 
 # 添加 ROS 軟體源和 GPG 密鑰
 RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
-
 RUN echo "deb http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-latest.list
 
-RUN apt-get update
-
 # 安裝 ROS Noetic
-RUN apt-get install -y ros-noetic-desktop-full
+RUN apt-get update && apt-get install -y ros-noetic-desktop-full
 
-# 設置 ROS 環境變數
+# 設置 ROS 環境變量
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
-ENV ROS_PACKAGE_PATH=/opt/VINS-Mono:${ROS_PACKAGE_PATH}
 
 # 安裝 rosdep 並初始化
 RUN apt-get install -y python3-rosdep && \
-    rm -f /etc/ros/rosdep/sources.list.d/20-default.list && \
-    rosdep init && \
-    rosdep update
+    rosdep init && rosdep update
 
 # 設置線程數以加快構建速度
 RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
@@ -78,13 +73,15 @@ RUN mkdir -p /root/catkin_ws/src && \
     /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build"
 
 # 在每次啟動容器時加載ROS環境變量
-RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
-RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
-# 設置 ROS_PACKAGE_PATH 環境變量，永久生效
-RUN echo 'export ROS_PACKAGE_PATH=/root/catkin_ws/src:$ROS_PACKAGE_PATH' >> /root/.bashrc
+RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc && \
+    echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc && \
+    echo 'export ROS_PACKAGE_PATH=/root/catkin_ws/src:$ROS_PACKAGE_PATH' >> /root/.bashrc
 
 # 複製VINS-Mono
 COPY ../ $CATKIN_WS/src/VINS-Mono/
 
 # 將工作目錄設置為catkin工作空間
 WORKDIR /root/catkin_ws
+
+# 最後執行bash以啟動
+CMD ["/bin/bash"]
