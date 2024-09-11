@@ -30,7 +30,7 @@ RUN apt-get clean && \
     python3-pip \
     xdg-utils \
     wget \
-    ros-noetic-catkin \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
 
 # 添加 ROS 軟體源和 GPG 密鑰
