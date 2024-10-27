@@ -47,13 +47,14 @@ void readParameters(ros::NodeHandle &n)
 
     fsSettings["image_topic"] >> IMAGE_TOPIC;
     fsSettings["imu_topic"] >> IMU_TOPIC;
-    MAX_CNT = fsSettings["max_cnt"];
-    MIN_DIST = fsSettings["min_dist"];
-    ROW = fsSettings["image_height"];
-    COL = fsSettings["image_width"];
-    FREQ = fsSettings["freq"];
-    F_THRESHOLD = fsSettings["F_threshold"];
-    SHOW_TRACK = fsSettings["show_track"];
+    
+    MAX_CNT = fsSettings["max_cnt"];    // The maximum number of features in feature tracking is 150.
+    MIN_DIST = fsSettings["min_dist"];  // The minimum distance between two features.
+    ROW = fsSettings["image_height"];   // Image height.
+    COL = fsSettings["image_width"];    // Image width.
+    FREQ = fsSettings["freq"];  // The frequency  of publishing tracking results, with a recommended minimum of at least 10Hz.  
+    F_THRESHOLD = fsSettings["F_threshold"];    // ransac threshold
+    SHOW_TRACK = fsSettings["show_track"];  // 
     EQUALIZE = fsSettings["equalize"];
     FISHEYE = fsSettings["fisheye"];
     if (FISHEYE == 1)
