@@ -33,7 +33,7 @@ T readParam(ros::NodeHandle &n, std::string name)
     }
     return ans;
 }
-
+// Read the configured parameters from the settings file.
 void readParameters(ros::NodeHandle &n)
 {
     std::string config_file;
@@ -52,11 +52,11 @@ void readParameters(ros::NodeHandle &n)
     MIN_DIST = fsSettings["min_dist"];  // The minimum distance between two features.
     ROW = fsSettings["image_height"];   // Image height.
     COL = fsSettings["image_width"];    // Image width.
-    FREQ = fsSettings["freq"];  // The frequency  of publishing tracking results, with a recommended minimum of at least 10Hz.  
-    F_THRESHOLD = fsSettings["F_threshold"];    // ransac threshold
-    SHOW_TRACK = fsSettings["show_track"];  // 
-    EQUALIZE = fsSettings["equalize"];
-    FISHEYE = fsSettings["fisheye"];
+    FREQ = fsSettings["freq"];  // The frequency of publishing tracking results, with a recommended minimum of at least 10Hz.  
+    F_THRESHOLD = fsSettings["F_threshold"];    // ransac threshold(pixel)
+    SHOW_TRACK = fsSettings["show_track"];  // Publish the tracking images as a topic.
+    EQUALIZE = fsSettings["equalize"];  // If the image is too dark or too bright, enable the equalizer to find sufficient features.
+    FISHEYE = fsSettings["fisheye"];    // The read value is 0.
     if (FISHEYE == 1)
         FISHEYE_MASK = VINS_FOLDER_PATH + "config/fisheye_mask.jpg";
     CAM_NAMES.push_back(config_file);
