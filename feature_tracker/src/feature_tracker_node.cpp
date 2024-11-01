@@ -27,6 +27,7 @@ bool init_pub = 0;
 
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
+    //  The labeling of the first frame image.
     if(first_image_flag)
     {
         first_image_flag = false;
@@ -48,6 +49,9 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     }
     last_image_time = img_msg->header.stamp.toSec();
     // frequency control
+    // Modify the value of PUB_THIS_FRAME to determine whether to package the detected feature points and publish them to the /feature_tracker/featuretopic. 
+    // The frequency of publishing is controlled by FREQ, which sets the interval.
+    // This calculates the number of images sent per second, ensuring that the images processed per second do not exceed FREQ.
     if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
     {
         PUB_THIS_FRAME = true;
@@ -72,20 +76,30 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         img.step = img_msg->step;
         img.data = img_msg->data;
         img.encoding = "mono8";
+
+        // cv_bridge::toCvCopy obtains a copy of image data from a ROS image message,
+        // specifically extracting the image information from the ROS sensor_msg.
+
+        // cv_bridge serves as a bridge between ROS messages and OpenCV images, facilitating conversion between the two.
         ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
     }
     else
         ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
-
+    // Image data information
     cv::Mat show_img = ptr->image;
     TicToc t_r;
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
+        // monoculr situation
         ROS_DEBUG("processing camera %d", i);
         if (i != 1 || !STEREO_TRACK)
+            // Read the image information into trackerData.
             trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
         else
         {
+            // In the configuration file, when EQUALIZE is set to 1: 
+            // if the image is too dark or too light, enabling equalization helps to detect sufficient features.
+
             if (EQUALIZE)
             {
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
@@ -114,7 +128,9 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
    {
         pub_count++;
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
+        // Feature point ID
         sensor_msgs::ChannelFloat32 id_of_point;
+        // The u, v coordinates of the image
         sensor_msgs::ChannelFloat32 u_of_point;
         sensor_msgs::ChannelFloat32 v_of_point;
         sensor_msgs::ChannelFloat32 velocity_x_of_point;
@@ -143,8 +159,11 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
                     feature_points->points.push_back(p);
                     id_of_point.values.push_back(p_id * NUM_OF_CAM + i);
+
+                    // The x, y coordinates of the pixel
                     u_of_point.values.push_back(cur_pts[j].x);
                     v_of_point.values.push_back(cur_pts[j].y);
+
                     velocity_x_of_point.values.push_back(pts_velocity[j].x);
                     velocity_y_of_point.values.push_back(pts_velocity[j].y);
                 }
@@ -162,7 +181,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             init_pub = 1;
         }
         else
-            pub_img.publish(feature_points);
+            // Publish the detected feature points topic: feature, which will be received and processed by vins_estimator.
+            pub_img.publish(feature_points); 
 
         if (SHOW_TRACK)
         {
@@ -177,7 +197,18 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
                 for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
                 {
+                    // Display the color of each feature point based on its tracking count:
+                    // the redder the point, the longer it has been observed. If most feature points are blue in an image, it indicates that the front-end tracker is performing poorly.
                     double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
+
+                    /**
+                     * `cv::circle` is a function in OpenCV used to draw a circle.
+                     * Parameter 1: `tmp_img` is the image on which the circle is drawn.
+                     * Parameter 2: `trackerData[i].cur_pts[j]` specifies the coordinates of the circle's center.
+                     * Parameter 3: `2` sets the radius of the circle.
+                     * Parameter 4: defines the color of the circle, with `len` used here to determine the point's color.
+                     * Parameter 5: sets the thickness of the circle's outline; a higher value results in a thicker line, and a negative value creates a filled circle.
+                     */
                     cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
                     //draw speed line
                     /*
@@ -197,6 +228,10 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             }
             //cv::imshow("vis", stereo_img);
             //cv::waitKey(5);
+
+            //The published topic here is feature_img, 
+            //which will be displayed in Rviz under tracked_image. 
+            //The red circles in the image mark the detected feature points.
             pub_match.publish(ptr->toImageMsg());
         }
     }
