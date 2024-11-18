@@ -1,4 +1,5 @@
 #include "pose_graph.h"
+#include "parameters.h"
 
 PoseGraph::PoseGraph()
 {
@@ -41,6 +42,53 @@ void PoseGraph::loadVocabulary(std::string voc_path)
 
 void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 {
+    // Eigen::Vector3d tic = TIC[0];
+    // Eigen::Matrix3d ric = RIC[0];
+
+    // 顯示關鍵幀資訊的 OpenCV 視窗
+    if (!cur_kf->image.empty()) {
+        // 複製影像以免修改原始資料
+        cv::Mat display_image = cur_kf->image.clone();
+
+        // 顯示關鍵幀 ID 和位置資訊
+        std::string text = "ID: " + std::to_string(cur_kf->index) + 
+                           " IMU Pos: [" + std::to_string(cur_kf->vio_T_w_i.x()) + ", " +
+                           std::to_string(cur_kf->vio_T_w_i.y()) + ", " +
+                           std::to_string(cur_kf->vio_T_w_i.z()) + "]";
+
+        // 將文字資訊添加到影像上
+        cv::putText(display_image, text, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
+
+        // 獲取 IMU 的旋轉矩陣
+        Eigen::Matrix3d imu_rotation = cur_kf->vio_R_w_i;
+
+        // 使用 R2ypr 計算 Yaw, Pitch, Roll，輸出弧度
+        Eigen::Vector3d ypr_degrees = Utility::R2ypr(imu_rotation);
+
+        double yaw = ypr_degrees.x();
+        double pitch = ypr_degrees.y();
+        double roll = ypr_degrees.z();
+
+        std::string imu_rot_text = "IMU Roll, Pitch, Yaw: [" + 
+                           std::to_string(roll) + ", " + 
+                           std::to_string(pitch) + ", " + 
+                           std::to_string(yaw) + "]";
+        cv::putText(display_image, imu_rot_text, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
+        // // 計算並顯示相機位置
+        // Eigen::Vector3d camera_T_w = ric * cur_kf->vio_T_w_i + tic;
+        // std::string cam_text = "Camera Pos: [" + std::to_string(camera_T_w.x()) + ", " +
+        //                        std::to_string(camera_T_w.y()) + ", " +
+        //                        std::to_string(camera_T_w.z()) + "]";
+        // cv::putText(display_image, cam_text, cv::Point(10, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+
+        // 顯示影像到 OpenCV 視窗
+        cv::imshow("KeyFrame Info", display_image);
+
+        // 設置短暫的等待以更新視窗
+        cv::waitKey(1); // 1 毫秒的延遲
+    } else {
+        std::cout << "No image available for this KeyFrame.\n";
+    }
     //shift to base frame
     Vector3d vio_P_cur;
     Matrix3d vio_R_cur;
