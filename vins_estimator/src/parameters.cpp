@@ -22,6 +22,7 @@ std::string VINS_RESULT_PATH;
 std::string IMU_TOPIC;
 double ROW, COL;
 double TD, TR;
+bool use_imu;
 
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
@@ -132,6 +133,28 @@ void readParameters(ros::NodeHandle &n)
     {
         TR = 0;
     }
+
+    if (fsSettings["use_imu"].empty())
+    {
+        ROS_WARN("use_imu parameter not found in config file; defaulting to true.");
+        use_imu = true; // 預設值
+    }
+    else
+    {
+        std::string use_imu_str = (std::string)fsSettings["use_imu"];
+        if (use_imu_str == "true")
+            use_imu = true;
+        else if (use_imu_str == "false")
+            use_imu = false;
+        else
+        {
+            ROS_WARN("use_imu parameter in config file is not a valid boolean value; defaulting to true.");
+            use_imu = true;
+        }
+
+    }
+
+    ROS_INFO_STREAM("use_imu is set to: " << (use_imu ? "true" : "false"));
     
     fsSettings.release();
 }
