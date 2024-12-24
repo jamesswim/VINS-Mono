@@ -22,7 +22,7 @@ projection_parameters:
    cy: 372.2155456542969
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.                        
 #If you choose 0 or 1, you should write down the following matrix.
@@ -31,18 +31,18 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [ 9.9982976706552185e-01, -5.6848213832579614e-03,
-       -1.7553338586852929e-02, 6.2269112757016940e-03,
-       9.9950048946036085e-01, 3.0983820688605904e-02,
-       1.7368433022837325e-02, -3.1087849303861423e-02,
-       9.9936574043739945e-01]
+   data: [ 9.9976239151258894e-01, -5.5351598633411629e-03,
+       -2.1083702765785022e-02, 6.2100934897528831e-03,
+       9.9946593700681841e-01, 3.2082323823735083e-02,
+       2.0894861949226726e-02, -3.2205632556584381e-02,
+       9.9926282927753951e-01]
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [5.3840243829163331e-02, -4.0883217523765836e-02,
-       -3.0738338496614854e-02]
+   data: [5.9331219387163806e-02, -4.0806062874000411e-02,
+       -2.8318324924940151e-02]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking
@@ -83,3 +83,6 @@ rolling_shutter_tr: 0.033               # unit: s. rolling shutter read out time
 save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
 visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
 visualize_camera_size: 0.4      # size of camera marker in RVIZ
+
+#setting IMU
+use_imu: false
