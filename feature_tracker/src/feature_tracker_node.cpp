@@ -6,6 +6,7 @@
 #include <std_msgs/Bool.h>
 #include <cv_bridge/cv_bridge.h>
 #include <message_filters/subscriber.h>
+#include <std_msgs/Int32.h>
 
 #include "feature_tracker.h"
 
@@ -17,6 +18,8 @@ queue<sensor_msgs::ImageConstPtr> img_buf;
 
 ros::Publisher pub_img,pub_match;
 ros::Publisher pub_restart;
+ros::Publisher pub_rawImage;
+ros::Publisher pub_featureImg;
 
 FeatureTracker trackerData[NUM_OF_CAM];
 double first_image_time;
@@ -27,6 +30,7 @@ bool init_pub = 0;
 
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
+
     //  The labeling of the first frame image.
     if(first_image_flag)
     {
@@ -55,6 +59,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
     {
         PUB_THIS_FRAME = true;
+
         // reset the frequency control
         if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
         {
@@ -85,6 +90,14 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     }
     else
         ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+
+    if (PUB_THIS_FRAME)
+    {
+        sensor_msgs::ImagePtr rawImage_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", ptr->image).toImageMsg();
+        rawImage_msg->header.stamp = img_msg->header.stamp;
+        pub_rawImage.publish(rawImage_msg);
+    }
+
     // Image data information
     cv::Mat show_img = ptr->image;
     TicToc t_r;
@@ -113,6 +126,19 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         trackerData[i].showUndistortion("undistrotion_" + std::to_string(i));
 #endif
     }
+
+    // if (PUB_THIS_FRAME)
+    // {
+    //     cv::Mat feature_img;
+    //     cv::cvtColor(show_img, feature_img, CV_GRAY2BGR);
+
+    //     for (auto &pt : trackerData[0].cur_pts)
+    //         cv::circle(feature_img, pt, 2, cv::Scalar(0,255,0), 2);
+
+    //     sensor_msgs::ImagePtr feature_img_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", feature_img).toImageMsg();
+    //     feature_img_msg->header.stamp = img_msg->header.stamp;
+    //     pub_featureImg.publish(feature_img_msg);
+    // }
 
     for (unsigned int i = 0;; i++)
     {
@@ -184,6 +210,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             // Publish the detected feature points topic: feature, which will be received and processed by vins_estimator.
             pub_img.publish(feature_points); 
 
+
         if (SHOW_TRACK)
         {
             ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
@@ -211,7 +238,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                      */
                     cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
                     //draw speed line
-                    /*
+                    
                     Vector2d tmp_cur_un_pts (trackerData[i].cur_un_pts[j].x, trackerData[i].cur_un_pts[j].y);
                     Vector2d tmp_pts_velocity (trackerData[i].pts_velocity[j].x, trackerData[i].pts_velocity[j].y);
                     Vector3d tmp_prev_un_pts;
@@ -220,10 +247,10 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     Vector2d tmp_prev_uv;
                     trackerData[i].m_camera->spaceToPlane(tmp_prev_un_pts, tmp_prev_uv);
                     cv::line(tmp_img, trackerData[i].cur_pts[j], cv::Point2f(tmp_prev_uv.x(), tmp_prev_uv.y()), cv::Scalar(255 , 0, 0), 1 , 8, 0);
-                    */
-                    //char name[10];
-                    //sprintf(name, "%d", trackerData[i].ids[j]);
-                    //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                    
+                    char name[10];
+                    sprintf(name, "%d", trackerData[i].ids[j]);
+                    cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
                 }
             }
             //cv::imshow("vis", stereo_img);
@@ -233,6 +260,11 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             //which will be displayed in Rviz under tracked_image. 
             //The red circles in the image mark the detected feature points.
             pub_match.publish(ptr->toImageMsg());
+
+            // 發布視覺化影像（包含速度向量、特徵點ID）
+            sensor_msgs::ImagePtr feature_img_msg = cv_bridge::CvImage(img_msg->header, "bgr8", stereo_img).toImageMsg();
+            pub_featureImg.publish(feature_img_msg);
+
         }
     }
     ROS_INFO("whole feature tracker processing costs: %f", t_r.toc());
@@ -245,7 +277,7 @@ int main(int argc, char **argv)
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     
     readParameters(n);
-    
+
     // NUM_OF_CAM = 1, represent the number of camera
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
@@ -270,6 +302,11 @@ int main(int argc, char **argv)
     pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);
     pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
     pub_restart = n.advertise<std_msgs::Bool>("restart",1000);
+
+    pub_rawImage = n.advertise<sensor_msgs::Image>("raw_image", 1000);
+    pub_featureImg = n.advertise<sensor_msgs::Image>("feature_image", 1000);
+
+
     /*
     if (SHOW_TRACK)
         cv::namedWindow("vis", cv::WINDOW_NORMAL);

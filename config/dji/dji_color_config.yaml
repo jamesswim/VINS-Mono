@@ -2,15 +2,6 @@
 
 #common parameters
 
-# realsense d455
-# imu_topic: "/d400/imu0"
-# image_topic: "/device_0/sensor_1/Color_0/image/data"
-
-# MARS-LVIG_Dataset
-# imu_topic: "/dji_osdk_ros/imu"
-# image_topic: "/left_camera/image_raw"
-
-# own dataset (dji)
 imu_topic: "/imu/data"
 image_topic: "/camera/image_raw"
 output_path: "/home/rvl/catkin_ws/src/VINS-Mono/output"
@@ -19,31 +10,22 @@ output_path: "/home/rvl/catkin_ws/src/VINS-Mono/output"
 model_type: PINHOLE
 camera_name: camera
 
-# realsense d455
-# image_width: 1280
-# image_height: 720
-
-# MARS-LVIG_Dataset
-# image_width: 2448
-# image_height: 2048
-
-# own dataset (dji)
 image_width: 1920
 image_height: 1080
 
 distortion_parameters:
-   k1: -0.05731746926903725
-   k2: 0.06863658130168915
-   p1: -6.5484100374765971e-04
-   p2: -3.5829351558557421e-04 
+   k1: -0.0378
+   k2: 0.1821
+   p1: 0
+   p2: 0 
 projection_parameters:
-   fx: 643.50732421875
-   fy: 642.6273193359375
-   cx: 649.1669921875
-   cy: 372.2155456542969
+   fx: 1375.8871
+   fy: 1374.1473
+   cx: 1000.6641
+   cy: 783.0039
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.                        
 #If you choose 0 or 1, you should write down the following matrix.
@@ -52,41 +34,29 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   # data: [ 9.9976239151258894e-01, -5.5351598633411629e-03,
-   #     -2.1083702765785022e-02, 6.2100934897528831e-03,
-   #     9.9946593700681841e-01, 3.2082323823735083e-02,
-   #     2.0894861949226726e-02, -3.2205632556584381e-02,
-   #     9.9926282927753951e-01]
-
-   data: [ -5.6569550458217899e-01, -2.3457005657001662e-01,
-       7.9054758532061375e-01, 6.5952661278325198e-01,
-       4.4676577642812987e-01, 6.0450391896431965e-01,
-       -4.9498812422740446e-01, 8.6335232065090872e-01,
-       -9.8028196456561023e-02 ]
+   data: [ -0.9627515846, 0.2702706709, 0.0079467524,
+           -0.2702413187, -0.9627817219, 0.0045810094,
+            0.0088891004, 0.0022628332, 0.9999579309 ]
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   # data: [5.9331219387163806e-02, -4.0806062874000411e-02,
-   #     -2.8318324924940151e-02]
-
-   data: [ 4.0850891061855715e-02, -3.3431333083935662e-03,
-       1.0056957558719666e-01 ]
+   data: [ 0.0748149, 0.0882045, 0.2746965 ]
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
-min_dist: 25            # min distance between two features 
+max_cnt: 250            # max feature number in feature tracking,200
+min_dist: 40            # min distance between two features,30
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
-F_threshold: 1.0        # ransac threshold (pixel)
+F_threshold: 1.5        # ransac threshold (pixel),1
 show_track: 1           # publish tracking image as topic
-equalize: 0             # if image is too dark or light, trun on equalize to find enough features
+equalize: 1             # if image is too dark or light, trun on equalize to find enough features
 fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
 
 #optimization parameters
 max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time
-max_num_iterations: 8   # max solver itrations, to guarantee real time
-keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+max_num_iterations: 12   # max solver itrations, to guarantee real time
+keyframe_parallax: 7.0 # keyframe selection threshold (pixel) 10
 
 #imu parameters       The more accurate parameters you provide, the better performance
 acc_n: 0.1          # accelerometer measurement noise standard deviation. #0.2
@@ -102,7 +72,7 @@ load_previous_pose_graph: 0        # load and reuse previous pose graph; load fr
 pose_graph_save_path: "/home/rvl/catkin_ws/src/VINS-Mono/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
-estimate_td: 1                      # online estimate time offset between camera and imu
+estimate_td: 0                      # online estimate time offset between camera and imu
 td: 0.000                           # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #rolling shutter parameters

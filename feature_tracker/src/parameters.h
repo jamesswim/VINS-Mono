@@ -24,3 +24,4 @@ extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 
 void readParameters(ros::NodeHandle &n);
+ 

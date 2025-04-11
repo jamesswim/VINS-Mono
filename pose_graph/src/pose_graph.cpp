@@ -6,6 +6,7 @@ PoseGraph::PoseGraph()
     posegraph_visualization = new CameraPoseVisualization(1.0, 0.0, 1.0, 1.0);
     posegraph_visualization->setScale(0.1);
     posegraph_visualization->setLineWidth(0.01);
+    //构造了四自由度残差的结构
 	t_optimization = std::thread(&PoseGraph::optimize4DoF, this);
     earliest_loop_index = -1;
     t_drift = Eigen::Vector3d(0, 0, 0);
@@ -25,73 +26,45 @@ PoseGraph::~PoseGraph()
 	t_optimization.join();
 }
 
+//发布轨迹path的topic
 void PoseGraph::registerPub(ros::NodeHandle &n)
 {
     pub_pg_path = n.advertise<nav_msgs::Path>("pose_graph_path", 1000);
     pub_base_path = n.advertise<nav_msgs::Path>("base_path", 1000);
     pub_pose_graph = n.advertise<visualization_msgs::MarkerArray>("pose_graph", 1000);
+    pub_loop_pose = n.advertise<geometry_msgs::PoseStamped>("loop_pose", 1000);
+
     for (int i = 1; i < 10; i++)
         pub_path[i] = n.advertise<nav_msgs::Path>("path_" + to_string(i), 1000);
 }
 
+//加载Brief字典
 void PoseGraph::loadVocabulary(std::string voc_path)
 {
     voc = new BriefVocabulary(voc_path);
     db.setVocabulary(*voc, false, 0);
 }
 
+//添加关键帧，完成了回环检测与闭环的过程
 void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 {
     // Eigen::Vector3d tic = TIC[0];
     // Eigen::Matrix3d ric = RIC[0];
 
-    // 顯示關鍵幀資訊的 OpenCV 視窗
-    if (!cur_kf->image.empty()) {
-        // 複製影像以免修改原始資料
-        cv::Mat display_image = cur_kf->image.clone();
+    // 修正前資訊
+    int index_raw = cur_kf->index;
+    Eigen::Vector3d imu_translation_raw = cur_kf->vio_T_w_i;
+    Eigen::Matrix3d imu_rotation_raw = cur_kf->vio_R_w_i;
+    Eigen::Vector3d ypr_degrees_raw = Utility::R2ypr(imu_rotation_raw);
+    double yaw_raw = ypr_degrees_raw.x();
+    double pitch_raw = ypr_degrees_raw.y();
+    double roll_raw = ypr_degrees_raw.z();
 
-        // 顯示關鍵幀 ID 和位置資訊
-        std::string text = "ID: " + std::to_string(cur_kf->index) + 
-                           " IMU Pos: [" + std::to_string(cur_kf->vio_T_w_i.x()) + ", " +
-                           std::to_string(cur_kf->vio_T_w_i.y()) + ", " +
-                           std::to_string(cur_kf->vio_T_w_i.z()) + "]";
-
-        // 將文字資訊添加到影像上
-        cv::putText(display_image, text, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
-
-        // 獲取 IMU 的旋轉矩陣
-        Eigen::Matrix3d imu_rotation = cur_kf->vio_R_w_i;
-
-        // 使用 R2ypr 計算 Yaw, Pitch, Roll，輸出弧度
-        Eigen::Vector3d ypr_degrees = Utility::R2ypr(imu_rotation);
-
-        double yaw = ypr_degrees.x();
-        double pitch = ypr_degrees.y();
-        double roll = ypr_degrees.z();
-
-        std::string imu_rot_text = "IMU Roll, Pitch, Yaw: [" + 
-                           std::to_string(roll) + ", " + 
-                           std::to_string(pitch) + ", " + 
-                           std::to_string(yaw) + "]";
-        cv::putText(display_image, imu_rot_text, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
-        // // 計算並顯示相機位置
-        // Eigen::Vector3d camera_T_w = ric * cur_kf->vio_T_w_i + tic;
-        // std::string cam_text = "Camera Pos: [" + std::to_string(camera_T_w.x()) + ", " +
-        //                        std::to_string(camera_T_w.y()) + ", " +
-        //                        std::to_string(camera_T_w.z()) + "]";
-        // cv::putText(display_image, cam_text, cv::Point(10, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
-
-        // 顯示影像到 OpenCV 視窗
-        cv::imshow("KeyFrame Info", display_image);
-
-        // 設置短暫的等待以更新視窗
-        cv::waitKey(1); // 1 毫秒的延遲
-    } else {
-        std::cout << "No image available for this KeyFrame.\n";
-    }
+    
     //shift to base frame
     Vector3d vio_P_cur;
     Matrix3d vio_R_cur;
+    //如果sequence_cnt != cur_kf->sequence，则新建一个新的图像序列
     if (sequence_cnt != cur_kf->sequence)
     {
         sequence_cnt++;
@@ -104,49 +77,68 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
         m_drift.unlock();
     }
 
+
+    //获取当前帧的位姿vio_P_cur、vio_R_cur并更新
     cur_kf->getVioPose(vio_P_cur, vio_R_cur);
     vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
     vio_R_cur = w_r_vio *  vio_R_cur;
     cur_kf->updateVioPose(vio_P_cur, vio_R_cur);
     cur_kf->index = global_index;
     global_index++;
+
 	int loop_index = -1;
     if (flag_detect_loop)
     {
         TicToc tmp_t;
+        //进行回环检测，返回回环候选帧的索引
         loop_index = detectLoop(cur_kf, cur_kf->index);
     }
     else
     {
         addKeyFrameIntoVoc(cur_kf);
     }
-	if (loop_index != -1)
+	if (loop_index != -1)   //如果存在回环候选帧
 	{
+        // 1)将当前帧与回环帧进行描述子匹配，如果成功则确定存在回环
         //printf(" %d detect loop with %d \n", cur_kf->index, loop_index);
-        KeyFrame* old_kf = getKeyFrame(loop_index);
 
+        //获取回环候选帧
+        KeyFrame* old_kf = getKeyFrame(loop_index);
+        
+
+        //当前帧与回环候选帧进行描述子匹配
         if (cur_kf->findConnection(old_kf))
         {
+             //earliest_loop_index为最早的回环候选帧
             if (earliest_loop_index > loop_index || earliest_loop_index == -1)
                 earliest_loop_index = loop_index;
 
+            // 2）计算当前帧与回环帧的相对位姿，纠正当前帧位姿w_P_cur、w_R_cur
             Vector3d w_P_old, w_P_cur, vio_P_cur;
             Matrix3d w_R_old, w_R_cur, vio_R_cur;
             old_kf->getVioPose(w_P_old, w_R_old);
             cur_kf->getVioPose(vio_P_cur, vio_R_cur);
 
+
+            //获取当前帧与回环帧的相对位姿relative_q、relative_t
             Vector3d relative_t;
             Quaterniond relative_q;
             relative_t = cur_kf->getLoopRelativeT();
             relative_q = (cur_kf->getLoopRelativeQ()).toRotationMatrix();
+
+            //重新计算当前帧位姿w_P_cur、w_R_cur
             w_P_cur = w_R_old * relative_t + w_P_old;
             w_R_cur = w_R_old * relative_q;
+
+            //回环得到的位姿和VIO位姿之间的偏移量shift_r、shift_t
             double shift_yaw;
             Matrix3d shift_r;
             Vector3d shift_t;
             shift_yaw = Utility::R2ypr(w_R_cur).x() - Utility::R2ypr(vio_R_cur).x();
             shift_r = Utility::ypr2R(Vector3d(shift_yaw, 0, 0));
             shift_t = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
+
+            // 3）如果存在多个图像序列，则将所有图像序列都合并到世界坐标系下
             // shift vio pose of whole sequence to the world frame
             if (old_kf->sequence != cur_kf->sequence && sequence_loop[cur_kf->sequence] == 0)
             {
@@ -170,18 +162,88 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
                 }
                 sequence_loop[cur_kf->sequence] = 1;
             }
+            // 4）将当前帧放入优化队列中
             m_optimize_buf.lock();
             optimize_buf.push(cur_kf->index);
             m_optimize_buf.unlock();
         }
 	}
+
+    // 5) 获取VIO当前帧的位姿P、R，根据偏移量计算得到实际位姿。并进行位姿更新
 	m_keyframelist.lock();
     Vector3d P;
     Matrix3d R;
+    //获取VIO当前帧的位姿P、R，根据偏移量得到实际位姿
     cur_kf->getVioPose(P, R);
     P = r_drift * P + t_drift;
     R = r_drift * R;
+    //更新当前帧的位姿P、R
     cur_kf->updatePose(P, R);
+
+    int index_corrected = cur_kf->index;
+    Eigen::Vector3d imu_translation_corrected = P;
+    Eigen::Matrix3d imu_rotation_corrected = R;
+    Eigen::Vector3d ypr_degrees_corrected = Utility::R2ypr(imu_rotation_corrected);
+    double yaw_corrected = ypr_degrees_corrected.x();
+    double pitch_corrected = ypr_degrees_corrected.y();
+    double roll_corrected = ypr_degrees_corrected.z();
+
+    // 顯示關鍵幀資訊的 OpenCV 視窗
+    if (!cur_kf->image.empty()) {
+        // 複製影像以免修改原始資料
+        cv::Mat display_image = cur_kf->image.clone();
+
+        // 顯示關鍵幀 ID 和位置資訊
+        std::string index_raw_text = "[Raw] KeyFrame Index: " + std::to_string(index_raw);
+        std::string imu_pos_raw_text = "[Raw] IMU Pos (X, Y, Z): [" + 
+                           std::to_string(imu_translation_raw.x()) + ", " +
+                           std::to_string(imu_translation_raw.y()) + ", " +
+                           std::to_string(imu_translation_raw.z()) + "]";
+
+        std::string imu_rot_raw_text = "[Raw] IMU Roll, Pitch, Yaw: [" + 
+                           std::to_string(roll_raw) + ", " + 
+                           std::to_string(pitch_raw) + ", " + 
+                           std::to_string(yaw_raw) + "]";
+
+        cv::putText(display_image, index_raw_text, cv::Point(10, 50),
+                    cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2);
+        cv::putText(display_image, imu_pos_raw_text, cv::Point(10, 90),
+                    cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2);
+        cv::putText(display_image, imu_rot_raw_text, cv::Point(10, 130),
+                    cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2);
+
+        std::string index_corrected_text = "[corrected] KeyFrame Index: " + std::to_string(index_corrected);
+        std::string imu_pos_corrected_text = "[corrected] IMU Pos (X, Y, Z): [" +
+                                             std::to_string(imu_translation_corrected.x()) + ", " +
+                                             std::to_string(imu_translation_corrected.y()) + ", " +
+                                             std::to_string(imu_translation_corrected.z()) + "]";
+        std::string imu_rot_corrected_text = "[corrected] IMU Roll, Pitch, Yaw: [" +
+                                             std::to_string(roll_corrected) + ", " +
+                                             std::to_string(pitch_corrected) + ", " +
+                                             std::to_string(yaw_corrected) + "]";
+
+        cv::putText(display_image, index_corrected_text,
+                    cv::Point(10, display_image.rows - 130), // 靠近左下角
+                    cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2); 
+        cv::putText(display_image, imu_pos_corrected_text,
+                    cv::Point(10, display_image.rows - 90), // 靠近左下角
+                    cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2); 
+        cv::putText(display_image, imu_rot_corrected_text,
+                    cv::Point(10, display_image.rows - 50), // 靠近左下角
+                    cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2); 
+        // 顯示影像到 OpenCV 視窗
+        // cv::namedWindow("KeyFrame Info", cv::WINDOW_NORMAL);
+        // cv::resizeWindow("KeyFrame Info", 1224, 1024); // 設定適合螢幕的大小
+        // cv::imshow("KeyFrame Info", display_image);
+
+        // 設置短暫的等待以更新視窗
+        // cv::waitKey(1); // 1 毫秒的延遲
+    } else {
+        std::cout << "No image available for this KeyFrame.\n";
+    }
+
+
+    // 6)发布path[sequence_cnt]
     Quaterniond Q{R};
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header.stamp = ros::Time(cur_kf->time_stamp);
@@ -196,6 +258,8 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     path[sequence_cnt].poses.push_back(pose_stamped);
     path[sequence_cnt].header = pose_stamped.header;
 
+
+    // 7)保存闭环轨迹到VINS_RESULT_PATH
     if (SAVE_LOOP_PATH)
     {
         ofstream loop_path_file(VINS_RESULT_PATH, ios::app);
@@ -211,8 +275,21 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
                         << Q.z() << " "
                         << Q.w() << endl;
         loop_path_file.close();
+
+        geometry_msgs::PoseStamped loop_msg;
+        loop_msg.header.stamp = ros::Time(cur_kf->time_stamp); 
+        loop_msg.pose.position.x = P.x();
+        loop_msg.pose.position.y = P.y();
+        loop_msg.pose.position.z = P.z();
+        loop_msg.pose.orientation.x = Q.x();
+        loop_msg.pose.orientation.y = Q.y();
+        loop_msg.pose.orientation.z = Q.z();
+        loop_msg.pose.orientation.w = Q.w();
+
+        pub_loop_pose.publish(loop_msg);
     }
     //draw local connection
+    // 8) 绘制可视化轨迹中帧间的连线，发布topic：pub_pg_path、pub_path、pub_base_path
     if (SHOW_S_EDGE)
     {
         list<KeyFrame*>::reverse_iterator rit = keyframelist.rbegin();
@@ -256,7 +333,7 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 	m_keyframelist.unlock();
 }
 
-
+//载入关键帧
 void PoseGraph::loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 {
     cur_kf->index = global_index;
@@ -333,6 +410,8 @@ void PoseGraph::loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     m_keyframelist.unlock();
 }
 
+
+//返回索引为index的关键帧
 KeyFrame* PoseGraph::getKeyFrame(int index)
 {
 //    unique_lock<mutex> lock(m_keyframelist);
@@ -348,6 +427,8 @@ KeyFrame* PoseGraph::getKeyFrame(int index)
         return NULL;
 }
 
+
+//回环检测
 int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
 {
     // put image into image_pool; for visualization
@@ -432,6 +513,8 @@ int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
 
 }
 
+
+//将当前帧的描述子存入字典数据库
 void PoseGraph::addKeyFrameIntoVoc(KeyFrame* keyframe)
 {
     // put image into image_pool; for visualization
@@ -447,6 +530,8 @@ void PoseGraph::addKeyFrameIntoVoc(KeyFrame* keyframe)
     db.add(keyframe->brief_descriptors);
 }
 
+
+//四自由度位姿图优化函数
 void PoseGraph::optimize4DoF()
 {
     while(true)
@@ -625,6 +710,7 @@ void PoseGraph::optimize4DoF()
     }
 }
 
+//更新轨迹并发布
 void PoseGraph::updatePath()
 {
     m_keyframelist.lock();
@@ -687,6 +773,18 @@ void PoseGraph::updatePath()
                             << Q.z() << " "
                             << Q.w() << endl;
             loop_path_file.close();
+
+            geometry_msgs::PoseStamped loop_msg;
+            loop_msg.header.stamp = ros::Time((*it)->time_stamp); 
+            loop_msg.pose.position.x = P.x();
+            loop_msg.pose.position.y = P.y();
+            loop_msg.pose.position.z = P.z();
+            loop_msg.pose.orientation.x = Q.x();
+            loop_msg.pose.orientation.y = Q.y();
+            loop_msg.pose.orientation.z = Q.z();
+            loop_msg.pose.orientation.w = Q.w();
+
+            pub_loop_pose.publish(loop_msg);
         }
         //draw local connection
         if (SHOW_S_EDGE)
@@ -740,6 +838,7 @@ void PoseGraph::updatePath()
 }
 
 
+//保存位姿图到file_path
 void PoseGraph::savePoseGraph()
 {
     m_keyframelist.lock();
@@ -795,6 +894,8 @@ void PoseGraph::savePoseGraph()
     printf("save pose graph time: %f s\n", tmp_t.toc() / 1000);
     m_keyframelist.unlock();
 }
+
+//从file_path读取位姿图
 void PoseGraph::loadPoseGraph()
 {
     TicToc tmp_t;
@@ -915,6 +1016,8 @@ void PoseGraph::loadPoseGraph()
     base_sequence = 0;
 }
 
+
+//用于发布topic：pub_pg_path、pub_path、pub_base_path
 void PoseGraph::publish()
 {
     for (int i = 1; i <= sequence_cnt; i++)
@@ -932,6 +1035,8 @@ void PoseGraph::publish()
     //posegraph_visualization->publish_by(pub_pose_graph, path[sequence_cnt].header);
 }
 
+
+//更新关键帧的回环信息
 void PoseGraph::updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1 > &_loop_info)
 {
     KeyFrame* kf = getKeyFrame(index);

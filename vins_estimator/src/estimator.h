@@ -10,6 +10,10 @@
 #include "initial/initial_ex_rotation.h"
 #include <std_msgs/Header.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/String.h>
+#include <geometry_msgs/PoseStamped.h>
+
+
 
 #include <ceres/ceres.h>
 #include "factor/imu_factor.h"
@@ -32,7 +36,7 @@ class Estimator
 
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
-    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
+    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header, ros::Publisher &pub_parallax);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
 
     // internal
@@ -47,7 +51,7 @@ class Estimator
     void optimization();
     void vector2double();
     void double2vector();
-    bool failureDetection();
+    bool failureDetection(const ros::Time& image_timestamp);
 
 
     enum SolverFlag
@@ -136,4 +140,9 @@ class Estimator
     Vector3d relo_relative_t;
     Quaterniond relo_relative_q;
     double relo_relative_yaw;
+
+    ros::Publisher init_pub;
+    ros::Publisher pub_failure_detection;
+    ros::Publisher pub_z_debug;
+    ros::Publisher pub_tmp_p, pub_last_p;
 };

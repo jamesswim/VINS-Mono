@@ -189,9 +189,10 @@ namespace cv {
     }
 }
 
-
+// 給定一組兩幀圖像上的對應點（歸一化座標），估算出這兩幀之間的：相對旋轉矩陣 R, 相對平移向量 T
 bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &corres, Matrix3d &Rotation, Vector3d &Translation)
 {
+    // 檢查對應點數量
     if (corres.size() >= 15)
     {
         vector<cv::Point2f> ll, rr;

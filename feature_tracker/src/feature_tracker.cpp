@@ -2,14 +2,24 @@
 
 int FeatureTracker::n_id = 0;
 
+// Check whether the point "pt" is within the boundary.
 bool inBorder(const cv::Point2f &pt)
 {
     const int BORDER_SIZE = 1;
+
+    //cvRound(): Returns the integer closest to the argument, effectively rounding to the nearest integer.
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
+
+    /**
+     * With a border size of `BORDER_SIZE`, the range for the x-coordinate of `pt` is [BORDER_SIZE, COL - BORDER_SIZE].
+     * The range for the y-coordinate of `pt` is [BORDER_SIZE, ROW - BORDER_SIZE].
+     */
     return BORDER_SIZE <= img_x && img_x < COL - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < ROW - BORDER_SIZE;
 }
 
+// Adjust all elements in the `status` array with a value of 1 to the positions from 0 to (j-1). 
+// At this point, set the array size to j.
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
 {
     int j = 0;
@@ -54,13 +64,19 @@ void FeatureTracker::setMask()
 
     forw_pts.clear();
     ids.clear();
+
+    // `track_cnt` stores the tracking count of feature points that can be successfully tracked.
     track_cnt.clear();
 
     for (auto &it : cnt_pts_id)
     {
         if (mask.at<uchar>(it.second.first) == 255)
         {
+            // Coordinates of the corner points in the image
             forw_pts.push_back(it.second.first);
+
+            // Stores the IDs of currently tracked corner points. 
+            //This ID is crucial as it maintains the correspondence of corner points between frames.
             ids.push_back(it.second.second);
             track_cnt.push_back(it.first);
             cv::circle(mask, it.second.first, MIN_DIST, 0, -1);
@@ -86,8 +102,14 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
 
     if (EQUALIZE)
     {
+        /**
+         * Contrast Limited Adaptive Histogram Equalization (CLAHE)
+         * CLAHE enhances image contrast adaptively and can improve the visibility of image features.
+         */
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         TicToc t_c;
+
+        // In the apply function, `_img` is the input parameter, and `img` is the output parameter.
         clahe->apply(_img, img);
         ROS_DEBUG("CLAHE costs: %fms", t_c.toc());
     }
@@ -110,6 +132,18 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
+
+        // EXPORTS_W void calcOpticalFlowPyrLK( InputArray prevImg, InputArray nextImg,
+        //     InputArray prevPts, CV_OUT InputOutputArray nextPts,
+        //     OutputArray status, OutputArray err,
+        //     Size winSize=Size(21,21), int maxLevel=3,
+        //     TermCriteria criteria=TermCriteria(
+        //      TermCriteria::COUNT+TermCriteria::EPS,
+        //      30, 0.01),
+        //     double derivLambda=0.5,
+        //     int flags=0,
+        //     double minEigThreshold=1e-4);
+
         cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
 
         for (int i = 0; i < int(forw_pts.size()); i++)

@@ -1,5 +1,5 @@
 <launch>
-    <arg name="config_path" default = "$(find feature_tracker)/../config/realsense/realsense_color_config.yaml" />
+    <arg name="config_path" default = "$(find feature_tracker)/../config/mars-lvig/mars-lvig_color_config.yaml" />
 	  <arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
     
     <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
@@ -11,6 +11,8 @@
        <param name="config_file" type="string" value="$(arg config_path)" />
        <param name="vins_folder" type="string" value="$(arg vins_path)" />
     </node>
+
+    <node pkg="analyze" type="analyze_frame_node" name="analyze_frame_node" output="screen"/>
 
     <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="screen">
         <param name="config_file" type="string" value="$(arg config_path)" />

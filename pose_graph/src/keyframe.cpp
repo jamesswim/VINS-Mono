@@ -9,7 +9,18 @@ static void reduceVector(vector<Derived> &v, vector<uchar> status)
             v[j++] = v[i];
     v.resize(j);
 }
-
+/**
+ * double _time_stamp: Timestamp of the keyframe
+ * int _index: Index of the keyframe
+ * Vector3d &_vio_T_w_i: Position vector
+ * Matrix3d &_vio_R_w_i: Rotation matrix
+ * cv::Mat &_image: Image corresponding to the keyframe
+ * vector<cv::Point3f> &_point_3d: 3D points observed in the keyframe
+ * vector<cv::Point2f> &_point_2d_uv: 2D points on the camera plane of the keyframe
+ * vector<cv::Point2f> &_point_2d_norm: Normalized coordinates of key points in the keyframe
+ * vector<double> &_point_id: Feature point IDs
+ * int _sequence: Sequence number
+ */
 // create keyframe online
 KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i, cv::Mat &_image,
 		           vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_norm,

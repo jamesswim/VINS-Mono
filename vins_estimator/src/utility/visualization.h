@@ -18,6 +18,7 @@
 #include "../estimator.h"
 #include "../parameters.h"
 #include <fstream>
+#include <std_msgs/Float64MultiArray.h> 
 
 extern ros::Publisher pub_odometry;
 extern ros::Publisher pub_path, pub_pose;

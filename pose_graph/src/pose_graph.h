@@ -84,6 +84,8 @@ private:
 	ros::Publisher pub_base_path;
 	ros::Publisher pub_pose_graph;
 	ros::Publisher pub_path[10];
+
+	ros::Publisher pub_loop_pose;
 };
 
 template <typename T>
@@ -114,6 +116,8 @@ class AngleLocalParameterization {
   }
 };
 
+
+//将欧拉角转换为旋转矩阵
 template <typename T> 
 void YawPitchRollToRotationMatrix(const T yaw, const T pitch, const T roll, T R[9])
 {
@@ -134,6 +138,7 @@ void YawPitchRollToRotationMatrix(const T yaw, const T pitch, const T roll, T R[
 	R[8] = cos(p) * cos(r);
 };
 
+//对矩阵进行转置
 template <typename T> 
 void RotationMatrixTranspose(const T R[9], T inv_R[9])
 {
@@ -148,6 +153,7 @@ void RotationMatrixTranspose(const T R[9], T inv_R[9])
 	inv_R[8] = R[8];
 };
 
+//将Rt矩阵相乘等
 template <typename T> 
 void RotationMatrixRotatePoint(const T R[9], const T t[3], T r_t[3])
 {
