@@ -266,7 +266,7 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
         loop_path_file.setf(ios::fixed, ios::floatfield);
         loop_path_file.precision(9);
         loop_path_file << cur_kf->time_stamp << " ";
-        loop_path_file.precision(5);
+        loop_path_file.precision(6);
         loop_path_file  << P.x() << " "
                         << P.y() << " "
                         << P.z() << " "
@@ -764,7 +764,7 @@ void PoseGraph::updatePath()
             loop_path_file.setf(ios::fixed, ios::floatfield);
             loop_path_file.precision(9);
             loop_path_file << (*it)->time_stamp << " ";
-            loop_path_file.precision(5);
+            loop_path_file.precision(6);
             loop_path_file  << P.x() << " "
                             << P.y() << " "
                             << P.z() << " "

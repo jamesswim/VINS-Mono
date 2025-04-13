@@ -158,7 +158,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(9);
         foutC << header.stamp.toSec() << " ";
-        foutC.precision(5);
+        foutC.precision(6);
         foutC << estimator.Ps[WINDOW_SIZE].x() << " "
               << estimator.Ps[WINDOW_SIZE].y() << " "
               << estimator.Ps[WINDOW_SIZE].z() << " "
